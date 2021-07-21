@@ -7,6 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { GlobalLogger } from '../logger/global.logger';
+import { Loggers } from 'src/types/loggers';
 
 @Injectable()
 export default class GlobalInterceptor implements NestInterceptor {
@@ -26,7 +27,7 @@ export default class GlobalInterceptor implements NestInterceptor {
     const response = ctx.getResponse<Response>();
     const { method, body, url, trackUUid } = request;
     this.logger.log(
-      `${Loggers.CONTROLLER_METHOD}:${className}_${handle}:${trackUUid}:${method}_${url}`,
+      `${Loggers.CONTROLLER_METHOD}:${trackUUid}:${method}_${url}:${className.name}_${handle.name}`,
       {
         body,
         path: url,

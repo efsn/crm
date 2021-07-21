@@ -1,17 +1,16 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import uuid from 'node-uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { GlobalLogger } from '../logger/global.logger';
+import { Loggers } from 'src/types/loggers';
 
-@Injectable()
-export default class GlobalMiddleware implements NestMiddleware {
-  constructor(private logger: GlobalLogger) {}
-  use(req: Request, res: any, next: () => void): any {
-    req.trackUUid = uuid.v4();
+export default function globalMiddleware(app) {
+  const logger = app.get(GlobalLogger);
+  app.use((req: Request, res: any, next) => {
+    req.trackUUid = uuidv4();
     const { method, url, body } = req;
-    this.logger.log(`${Loggers.START}:${req.trackUUid}:${method}_${url}`, {
+    logger.log(`${Loggers.START}:${req.trackUUid}:${method}:${url}`, {
       path: url,
       body,
     });
     next();
-  }
+  });
 }

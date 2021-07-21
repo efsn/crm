@@ -21,8 +21,8 @@ async function initGlobals(app) {
     new GlobalExceptionFilter(logger),
     new HttpExceptionFilter(logger),
   );
-  app.use(GlobalMiddleware);
-  app.useGlobalInterceptors(GlobalInterceptor);
+  GlobalMiddleware(app);
+  app.useGlobalInterceptors(new GlobalInterceptor(logger));
 }
 
 bootstrap();

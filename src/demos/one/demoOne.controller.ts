@@ -5,7 +5,7 @@ import ConfigService from '../../common/configs/config.service';
 export default class DemoOneController {
   constructor(private readonly config: ConfigService) {}
   @Get('show')
-  show() {
-    return 'show';
+  async show() {
+    return { message: 'test', statusCode: 1 };
   }
 }
