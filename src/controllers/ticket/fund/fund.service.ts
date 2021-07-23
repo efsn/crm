@@ -12,8 +12,7 @@ import TicketGroup from '../../../typeorm/entity/ticketGroup.entity';
 
 @Injectable()
 export default class FundService {
-  private LENGTH = 2;
-  private CACHE = {};
+  private LENGTH = 200;
   @InjectRepository(Ticket)
   private ticket: Repository<Ticket>;
   @InjectRepository(TicketGroup)
@@ -24,6 +23,12 @@ export default class FundService {
 
   async refresh(): Promise<Partial<IResponseResult>> {
     const todayTime = dateFormat(new Date(), 'yyyy-MM-dd');
+    const fundList = await this.queryTicketFund(todayTime);
+    if (fundList && fundList.length > 0)
+      return {
+        data: {},
+        message: `${todayTime} has refreshed`,
+      };
     const result = await this.getList(this.getFundUrl(todayTime, this.LENGTH));
     let data = {
       totalList: [],
@@ -31,14 +36,74 @@ export default class FundService {
     };
     if (result) {
       data = await this.storeMap(result);
-      await this.saveToStore(result.totalList);
+      await this.saveToStore(data.totalList, todayTime);
     }
     return {
       data,
     };
   }
 
-  async saveToStore(list) {}
+  async queryTicketFund(date: string): Promise<TicketFund[]> {
+    return this.ticketFund.find({
+      date,
+    });
+  }
+
+  async saveToStore(list: any[], date: string) {
+    list.forEach(async (item, index) => {
+      const { name, value } = item;
+      const ticket = await this.saveTicket({
+        name,
+      });
+      await this.saveTicketFund({
+        date,
+        fund: value,
+        ticket: ticket,
+        sort: index,
+      });
+    });
+  }
+
+  async saveTicketFund(fund: Partial<TicketFund>, checkTicketFund?: boolean) {
+    if (!checkTicketFund) {
+      const check = await this.checkTicketFund(fund);
+      fund = {
+        ...check,
+        ...fund,
+      };
+    }
+    this.ticketFund.save(fund, {
+      reload: true,
+    });
+  }
+
+  async checkTicketFund(
+    fund: Partial<TicketFund>,
+  ): Promise<TicketFund | undefined> {
+    return this.ticketFund.findOne({
+      date: fund.date,
+      ticket: fund.ticket,
+    });
+  }
+
+  async saveTicket(
+    ticket: Partial<Ticket>,
+    checkHasTicket?: boolean,
+  ): Promise<Ticket> {
+    if (!checkHasTicket) {
+      const check = await this.checkHasTicket(ticket);
+      if (check) return check;
+    }
+    const { name, code } = ticket;
+    const newTicket = new Ticket();
+    newTicket.name = name;
+    newTicket.code = code;
+    return this.ticket.save(newTicket);
+  }
+
+  async checkHasTicket(ticket: Partial<Ticket>): Promise<Ticket | undefined> {
+    return this.ticket.findOne({ name: ticket.name });
+  }
 
   async storeMap(data) {
     data = await this.getMap(data);
@@ -64,10 +129,11 @@ export default class FundService {
     });
     const totalList = [];
     for (const item in totals) {
-      totalList.push({
-        name: item,
-        value: totals[item].toFixed(2),
-      });
+      if (totals[item].toFixed(2) > 10)
+        totalList.push({
+          name: item,
+          value: totals[item].toFixed(2),
+        });
     }
     const scaleList = [];
     for (const item in scales) {

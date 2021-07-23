@@ -1,12 +1,10 @@
-import { Module, DynamicModule, Inject } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import ConfigService from '../common/configs/config.service';
 import { EConfigEnv } from '../types/config';
-import EntityModule from './entity/entity.module';
 
 @Module({
   imports: [
-    EntityModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigService],
       useFactory: (config: ConfigService) => ({
