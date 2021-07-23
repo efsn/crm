@@ -36,6 +36,7 @@ export default class GlobalInterceptor implements NestInterceptor {
     return next.handle().pipe(
       map<Partial<IResponseResult>, IResponseResult>(
         ({ data, statusCode, message }) => {
+          console.log(data)
           if (statusCode) {
             response.status(statusCode);
           }
