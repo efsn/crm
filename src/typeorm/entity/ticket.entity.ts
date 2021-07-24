@@ -38,6 +38,11 @@ export default class Ticket {
   @Column({ default: 0 })
   level: number;
   /*
+   * 持仓中排名
+   * */
+  @Column()
+  sort: number;
+  /*
    * 股票描述
    * */
   @Column({ default: '' })

@@ -9,6 +9,8 @@ import { dateFormat } from '../../../utils/common';
 import Ticket from '../../../typeorm/entity/ticket.entity';
 import TicketFund from '../../../typeorm/entity/ticketFund.entity';
 import TicketGroup from '../../../typeorm/entity/ticketGroup.entity';
+import TicketFundTotal from '../../../typeorm/entity/ticketFundTotal.entity';
+import TicketGroupFund from '../../../typeorm/entity/ticketGroupFund.entity';
 
 @Injectable()
 export default class FundService {
@@ -17,10 +19,17 @@ export default class FundService {
   private ticket: Repository<Ticket>;
   @InjectRepository(TicketGroup)
   private ticketGroup: Repository<TicketGroup>;
+  @InjectRepository(TicketFundTotal)
+  private ticketFundTotal: Repository<TicketFundTotal>;
   @InjectRepository(TicketFund)
   private ticketFund: Repository<TicketFund>;
+  @InjectRepository(TicketGroupFund)
+  private ticketGroupFund: Repository<TicketGroupFund>;
   constructor(@Inject('HTTP_SERVICE') private httpService: HttpService) {}
 
+  /*
+   * 啦取当日的数据
+   * */
   async refresh(): Promise<Partial<IResponseResult>> {
     const todayTime = dateFormat(new Date(), 'yyyy-MM-dd');
     const fundList = await this.queryTicketFund(todayTime);
@@ -43,17 +52,176 @@ export default class FundService {
     };
   }
 
-  async queryTicketFund(date: string): Promise<TicketFund[]> {
-    return this.ticketFund.find({
-      date,
+  /*
+   * 获取列表
+   * */
+  async list(
+    pagination: IPaginationDto,
+    date = dateFormat(new Date(), 'yyyy-MM-dd'),
+  ) {
+    const [fundList, total] = await this.queryTicketFund(date, pagination);
+    const list = await this.ticket.findByIds(
+      fundList.map((item) => item.ticket),
+      { relations: ['fund'] },
+    );
+    return {
+      list,
+      total,
+      pageTotal: Math.ceil(total / pagination.pageSize),
+      ...pagination,
+    };
+  }
+
+  /*
+   * 添加 ticket 到 类型
+   * */
+  async ticketToGroup(ticket: Partial<Ticket>, ticketGroup: TicketGroup) {
+    ticket.ticketGroups = [ticketGroup];
+    this.ticket.save(ticket, { reload: true });
+  }
+
+  async sql(ticketGroup: Partial<TicketGroup>) {
+    const group = await this.saveTicketGroup(ticketGroup);
+    const data = await this.ticketToGroup(
+      {
+        id: 42,
+      },
+      group,
+    );
+    return {
+      data,
+    };
+  }
+
+  /*
+   * 添加类型
+   * */
+  async saveTicketGroup(ticketGroup: Partial<TicketGroup>) {
+    const group = await this.ticketGroup.findOne({ name: ticketGroup.name });
+    if (group) return group;
+    return await this.ticketGroup.save(ticketGroup);
+  }
+
+  /*
+   * 获取类型列表
+   * */
+  async getTicketGroup(pagination: IPaginationDto) {
+    const { pageSize, page } = pagination;
+    const [list, total] = await this.ticketGroup
+      .createQueryBuilder()
+      .offset(pageSize * page)
+      .limit(pageSize)
+      .getManyAndCount();
+    return {
+      list,
+      total,
+      pageTotal: Math.ceil(total / pageSize),
+      ...pagination,
+    };
+  }
+
+  /*
+   * 获取板块前10的资金
+   * */
+  async saveGroupTotal(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+    const groups = await this.ticketGroup.find({
+      relations: ['tickets'],
     });
+    const list: Array<{
+      fund: number;
+      total: number;
+      group: TicketGroup;
+      date: string;
+    }> = [];
+    for (const item of groups) {
+      const { tickets, id } = item;
+      const ids = tickets.map((item) => item.id);
+      const [funds, total] = await this.ticketFund
+        .createQueryBuilder()
+        .whereInIds(ids)
+        .offset(0)
+        .limit(10)
+        .getManyAndCount();
+      list.push({
+        group: item,
+        date,
+        total,
+        fund: funds.reduce((a, item) => a + item.fund, 0),
+      });
+    }
+    list.sort((a, b) => b.fund - a.fund);
+    for (const item of list) {
+      const sort = list.indexOf(item);
+      const { fund, date, total, group } = item;
+      const ticketGroupFund = await this.ticketGroupFund.findOne({
+        group,
+        date,
+      });
+      await this.ticketGroupFund.save<Partial<TicketGroupFund>>(
+        {
+          ...ticketGroupFund,
+          fund,
+          date,
+          total,
+          sort,
+          group,
+        },
+        { reload: true },
+      );
+    }
+    return list;
+  }
+
+  async getGroupTotal(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+    const ticketGroupFunds = await this.ticketGroupFund
+      .createQueryBuilder()
+      .loadAllRelationIds()
+      .where({ date })
+      .orderBy('sort', 'ASC')
+      .getMany();
+    const list = this.ticketGroup.findByIds(
+      ticketGroupFunds.map((item) => item.group),
+      {
+        relations: ['fund'],
+      },
+    );
+    return list;
+  }
+
+  async queryTicketFund(
+    date: string,
+    pagination: IPaginationDto = {
+      pageSize: 1,
+      page: 0,
+    },
+  ): Promise<[TicketFund[], number]> {
+    const { pageSize, page } = pagination;
+    return await this.ticketFund
+      .createQueryBuilder()
+      .loadAllRelationIds()
+      .where({
+        date,
+      })
+      .orderBy('sort', 'ASC')
+      .offset(page * pageSize)
+      .limit(pageSize)
+      .getManyAndCount();
   }
 
   async saveToStore(list: any[], date: string) {
-    list.forEach(async (item, index) => {
+    const total = list
+      .slice(0, 150)
+      .reduce((a, item) => a + parseInt(item.value), 0);
+    await this.ticketFundTotal.save<Partial<TicketFundTotal>>({
+      fund: total,
+      date,
+    });
+    for (const item of list) {
+      const index = list.indexOf(item);
       const { name, value } = item;
       const ticket = await this.saveTicket({
         name,
+        sort: index,
       });
       await this.saveTicketFund({
         date,
@@ -61,7 +229,8 @@ export default class FundService {
         ticket: ticket,
         sort: index,
       });
-    });
+    }
+    await this.saveGroupTotal(date);
   }
 
   async saveTicketFund(fund: Partial<TicketFund>, checkTicketFund?: boolean) {
@@ -86,6 +255,9 @@ export default class FundService {
     });
   }
 
+  /*
+   * 添加股票
+   * */
   async saveTicket(
     ticket: Partial<Ticket>,
     checkHasTicket?: boolean,
@@ -94,10 +266,11 @@ export default class FundService {
       const check = await this.checkHasTicket(ticket);
       if (check) return check;
     }
-    const { name, code } = ticket;
+    const { name, code, sort } = ticket;
     const newTicket = new Ticket();
     newTicket.name = name;
     newTicket.code = code;
+    newTicket.sort = sort;
     return this.ticket.save(newTicket);
   }
 

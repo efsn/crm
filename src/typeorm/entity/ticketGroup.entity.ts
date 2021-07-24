@@ -1,5 +1,13 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToMany,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
 import Ticket from './ticket.entity';
+import TicketGroupFund from './ticketGroupFund.entity';
 /*
  * 股票类型(板块、概念)
  * */
@@ -17,4 +25,10 @@ export default class TicketGroup {
    * */
   @ManyToMany(() => Ticket, (Ticket) => Ticket.ticketGroups, { cascade: true })
   tickets: Ticket[];
+  /*
+   * 类型的基金持仓
+   * */
+  @OneToMany(() => TicketGroupFund, (TicketGroupFund) => TicketGroupFund.group)
+  @JoinColumn()
+  fund: TicketGroupFund[];
 }
