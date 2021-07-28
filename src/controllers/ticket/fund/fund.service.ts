@@ -15,6 +15,7 @@ import TicketGroupFund from '../../../typeorm/entity/ticketGroupFund.entity';
 @Injectable()
 export default class FundService {
   private LENGTH = 200;
+  private REFRESHING = false;
   @InjectRepository(Ticket)
   private ticket: Repository<Ticket>;
   @InjectRepository(TicketGroup)
@@ -28,12 +29,18 @@ export default class FundService {
   constructor(@Inject('HTTP_SERVICE') private httpService: HttpService) {}
 
   /*
-   * 啦取当日的数据
+   * 拉取当日的数据
    * */
   async refresh(): Promise<Partial<IResponseResult>> {
+    if (this.REFRESHING)
+      return {
+        data: {},
+        message: `refreshing`,
+      };
+    this.REFRESHING = true;
     const todayTime = dateFormat(new Date(), 'yyyy-MM-dd');
-    const fundList = await this.queryTicketFund(todayTime);
-    if (fundList && fundList.length > 0)
+    const [, total] = await this.queryTicketFund(todayTime);
+    if (total > 0)
       return {
         data: {},
         message: `${todayTime} has refreshed`,
@@ -47,6 +54,7 @@ export default class FundService {
       data = await this.storeMap(result);
       await this.saveToStore(data.totalList, todayTime);
     }
+    this.REFRESHING = false;
     return {
       data,
     };
@@ -62,7 +70,7 @@ export default class FundService {
     const [fundList, total] = await this.queryTicketFund(date, pagination);
     const list = await this.ticket.findByIds(
       fundList.map((item) => item.ticket),
-      { relations: ['fund'] },
+      { relations: ['fund', 'ticketGroups'] },
     );
     return {
       list,
@@ -75,9 +83,21 @@ export default class FundService {
   /*
    * 添加 ticket 到 类型
    * */
-  async ticketToGroup(ticket: Partial<Ticket>, ticketGroup: TicketGroup) {
-    ticket.ticketGroups = [ticketGroup];
-    this.ticket.save(ticket, { reload: true });
+  async ticketToGroup(
+    ticket: Partial<Ticket>,
+    ticketGroup: Partial<TicketGroup>,
+    type: 'ADD' | 'DELETE',
+  ) {
+    const target = await this.ticket.findOne(ticket, {
+      relations: ['ticketGroups'],
+    });
+    if (type === 'ADD')
+      target.ticketGroups = [...target.ticketGroups, ticketGroup];
+    else
+      target.ticketGroups = target.ticketGroups.filter(
+        (item) => item.id !== Number(ticketGroup.id),
+      );
+    return this.ticket.save(target, { reload: true });
   }
 
   async sql(ticketGroup: Partial<TicketGroup>) {
@@ -87,6 +107,7 @@ export default class FundService {
         id: 42,
       },
       group,
+      'ADD',
     );
     return {
       data,
@@ -99,7 +120,9 @@ export default class FundService {
   async saveTicketGroup(ticketGroup: Partial<TicketGroup>) {
     const group = await this.ticketGroup.findOne({ name: ticketGroup.name });
     if (group) return group;
-    return await this.ticketGroup.save(ticketGroup);
+    return await this.ticketGroup.save(ticketGroup, {
+      reload: true,
+    });
   }
 
   /*

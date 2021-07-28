@@ -52,7 +52,7 @@ export default class Ticket {
    * */
   @ManyToMany(() => TicketGroup, (TicketGroup) => TicketGroup.tickets)
   @JoinTable()
-  ticketGroups: TicketGroup[];
+  ticketGroups: Partial<TicketGroup>[];
   /*
    * 基金持仓信息
    * */

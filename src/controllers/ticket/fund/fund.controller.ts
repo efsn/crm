@@ -1,5 +1,6 @@
 import { Controller, Get, Query, Post, Body, HttpStatus } from '@nestjs/common';
 import FundService from './fund.service';
+import TicketGroup from '../../../typeorm/entity/ticketGroup.entity';
 
 @Controller('ticket/fund')
 export default class FundController {
@@ -43,16 +44,21 @@ export default class FundController {
    * 添加板块
    * */
   @Post('group')
-  async postGroup(@Body('name') name: string): Promise<IResponseResult> {
+  async postGroup(
+    @Body('name') name: string,
+    @Body('id') id: number,
+  ): Promise<IResponseResult> {
     if (!name)
       return {
         statusCode: HttpStatus.NOT_ACCEPTABLE,
         message: 'parameter error',
       };
     const { fundService } = this;
-    const data = await fundService.saveTicketGroup({
+    const param: Partial<TicketGroup> = {
       name,
-    });
+    };
+    if (id) param.id = id;
+    const data = await fundService.saveTicketGroup(param);
     return {
       data,
     };
@@ -82,6 +88,25 @@ export default class FundController {
   @Get('group/total')
   async getGroupTotal(@Query('date') date: string): Promise<IResponseResult> {
     const data = await this.fundService.getGroupTotal(date);
+    return {
+      data,
+    };
+  }
+
+  @Post('save')
+  async postSave(
+    @Body('groupId') groupId: number,
+    @Body('ticketId') ticketId: number,
+    @Body('type') type: number,
+  ): Promise<IResponseResult> {
+    const { fundService } = this;
+    const data = await fundService.ticketToGroup(
+      { id: ticketId },
+      {
+        id: groupId,
+      },
+      type ? 'ADD' : 'DELETE',
+    );
     return {
       data,
     };
