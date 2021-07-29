@@ -70,7 +70,7 @@ export default class FundController {
   @Get('group')
   async getGroup(
     @Query('page') page = 0,
-    @Query('pageSize') pageSize = 30,
+    @Query('pageSize') pageSize = 60,
   ): Promise<IResponseResult> {
     const { fundService } = this;
     const data = await fundService.getTicketGroup({
