@@ -15,7 +15,7 @@ export default class FundController {
   @Get('sql')
   async sql(@Query('name') name) {
     const { fundService } = this;
-    return await fundService.saveGroupTotal('2021-07-23');
+    return await fundService.sql();
   }
 
   /*
@@ -68,15 +68,9 @@ export default class FundController {
    * 板块列表
    * */
   @Get('group')
-  async getGroup(
-    @Query('page') page = 0,
-    @Query('pageSize') pageSize = 60,
-  ): Promise<IResponseResult> {
+  async getGroup(): Promise<IResponseResult> {
     const { fundService } = this;
-    const data = await fundService.getTicketGroup({
-      page,
-      pageSize,
-    });
+    const data = await fundService.getTicketGroup();
     return {
       data,
     };

@@ -70,7 +70,7 @@ export default class FundService {
     const [fundList, total] = await this.queryTicketFund(date, pagination);
     const list = await this.ticket.findByIds(
       fundList.map((item) => item.ticket),
-      { relations: ['fund', 'ticketGroups'] },
+      { relations: ['fund', 'ticketGroups'], order: { sort: 'ASC' } },
     );
     return {
       list,
@@ -100,15 +100,41 @@ export default class FundService {
     return this.ticket.save(target, { reload: true });
   }
 
-  async sql(ticketGroup: Partial<TicketGroup>) {
-    const group = await this.saveTicketGroup(ticketGroup);
-    const data = await this.ticketToGroup(
-      {
-        id: 42,
-      },
-      group,
-      'ADD',
-    );
+  async sql() {
+    // const result = await this.ticketFund
+    //   .createQueryBuilder()
+    //   .delete()
+    //   .where({
+    //     date: '2021-07-29',
+    //   })
+    //   .execute();
+    //   .remove({
+    //
+    // })
+    const list = await this.ticketGroup.find({
+      relations: ['tickets'],
+    });
+    const data = [];
+    for (const item of list) {
+      const tickets = await this.ticket.findByIds(
+        item.tickets.map((item) => item.id),
+        {
+          relations: ['fund'],
+          order: {
+            sort: 'ASC',
+          },
+        },
+      );
+      const temp = {};
+      for (const ticket of tickets) {
+        ticket.fund.forEach((item) => {
+          if (!temp[item.date]) temp[item.date] = [];
+          temp[item.date].push({ ...item, name: ticket.name });
+        });
+      }
+
+      data.push({ ...item, tickets, funds: temp });
+    }
     return {
       data,
     };
@@ -128,18 +154,33 @@ export default class FundService {
   /*
    * 获取类型列表
    * */
-  async getTicketGroup(pagination: IPaginationDto) {
-    const { pageSize, page } = pagination;
-    const [list, total] = await this.ticketGroup
-      .createQueryBuilder()
-      .offset(pageSize * page)
-      .limit(pageSize)
-      .getManyAndCount();
+  async getTicketGroup() {
+    const list = await this.ticketGroup.find({
+      relations: ['tickets'],
+    });
+    const data = [];
+    for (const item of list) {
+      const tickets = await this.ticket.findByIds(
+        item.tickets.map((item) => item.id),
+        {
+          relations: ['fund'],
+          order: {
+            sort: 'ASC',
+          },
+        },
+      );
+      const temp = {};
+      for (const ticket of tickets) {
+        ticket.fund.forEach((item) => {
+          if (!temp[item.date]) temp[item.date] = [];
+          temp[item.date].push({ ...item, name: ticket.name });
+        });
+      }
+
+      data.push({ ...item, tickets, funds: temp });
+    }
     return {
-      list,
-      total,
-      pageTotal: Math.ceil(total / pageSize),
-      ...pagination,
+      list: data,
     };
   }
 
@@ -281,20 +322,10 @@ export default class FundService {
   /*
    * 添加股票
    * */
-  async saveTicket(
-    ticket: Partial<Ticket>,
-    checkHasTicket?: boolean,
-  ): Promise<Ticket> {
-    if (!checkHasTicket) {
-      const check = await this.checkHasTicket(ticket);
-      if (check) return check;
-    }
-    const { name, code, sort } = ticket;
-    const newTicket = new Ticket();
-    newTicket.name = name;
-    newTicket.code = code;
-    newTicket.sort = sort;
-    return this.ticket.save(newTicket);
+  async saveTicket(ticket: Partial<Ticket>): Promise<Ticket> {
+    const check = await this.checkHasTicket(ticket);
+    if (check) ticket = { ...check, ...ticket };
+    return this.ticket.save(ticket, { reload: true });
   }
 
   async checkHasTicket(ticket: Partial<Ticket>): Promise<Ticket | undefined> {
