@@ -17,7 +17,7 @@ export default class TaskService {
   // | | hour
   // | minute
 
-  @Cron('0 0 0 * * *')
+  @Cron('1 0 0 * * 2-6')
   handleCron() {
     const { fundService } = this;
     fundService.refresh().then((res) => {
