@@ -87,6 +87,27 @@ export default class FundController {
     };
   }
 
+  /*
+   * 获取前150的基金总共持仓
+   * */
+  @Get('total')
+  async getTotal() {
+    const { fundService } = this;
+    return fundService.getTotal();
+  }
+
+  /*
+   * 获取前200的基金板块持仓
+   * */
+  @Get('type/total')
+  async getTypeTotal() {
+    const { fundService } = this;
+    return fundService.getTodayGroupPercent();
+  }
+
+  /*
+   * 添加股票到板块中
+   * */
   @Post('save')
   async postSave(
     @Body('groupId') groupId: number,

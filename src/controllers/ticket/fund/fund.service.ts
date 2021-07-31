@@ -100,7 +100,7 @@ export default class FundService {
     return this.ticket.save(target, { reload: true });
   }
 
-  async sql() {
+  async sql(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
     // const result = await this.ticketFund
     //   .createQueryBuilder()
     //   .delete()
@@ -111,32 +111,37 @@ export default class FundService {
     //   .remove({
     //
     // })
-    const list = await this.ticketGroup.find({
-      relations: ['tickets'],
+    const list = await this.ticketFund.find({
+      where: { date },
+      take: 200,
+      relations: ['ticket'],
     });
-    const data = [];
-    for (const item of list) {
-      const tickets = await this.ticket.findByIds(
-        item.tickets.map((item) => item.id),
-        {
-          relations: ['fund'],
-          order: {
-            sort: 'ASC',
-          },
-        },
-      );
-      const temp = {};
-      for (const ticket of tickets) {
-        ticket.fund.forEach((item) => {
-          if (!temp[item.date]) temp[item.date] = [];
-          temp[item.date].push({ ...item, name: ticket.name });
-        });
-      }
 
-      data.push({ ...item, tickets, funds: temp });
+    const temp = {};
+    let total = 0;
+    for (const item of list) {
+      const tickets = await this.ticket.findOne(item.ticket.id, {
+        relations: ['ticketGroups'],
+      });
+      total += item.fund;
+      tickets.ticketGroups.forEach((ticketGroup: TicketGroup) => {
+        const { id } = ticketGroup;
+        if (!temp[id])
+          temp[id] = {
+            fund: 0,
+            total: 0,
+            type: ticketGroup.name,
+            name: tickets.name,
+          };
+        temp[id].fund += item.fund;
+        temp[id].total += 1;
+      });
     }
     return {
-      data,
+      data: {
+        temp,
+        total,
+      },
     };
   }
 
@@ -149,6 +154,47 @@ export default class FundService {
     return await this.ticketGroup.save(ticketGroup, {
       reload: true,
     });
+  }
+
+  /*
+   * 获取每天前150的总额
+   * */
+  async getTotal() {
+    const data = await this.ticketFundTotal.find();
+    return {
+      data,
+    };
+  }
+
+  async getTodayGroupPercent(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+    const list = await this.ticketFund.find({
+      where: { date },
+      take: 200,
+      relations: ['ticket'],
+    });
+    const temp = {};
+    // let total = 0;
+    for (const item of list) {
+      const tickets = await this.ticket.findOne(item.ticket.id, {
+        relations: ['ticketGroups'],
+      });
+      // total += item.fund;
+      tickets.ticketGroups.forEach((ticketGroup: TicketGroup) => {
+        const { id } = ticketGroup;
+        if (!temp[id])
+          temp[id] = {
+            fund: 0,
+            total: 0,
+            type: ticketGroup.name,
+            name: tickets.name,
+          };
+        temp[id].fund += item.fund;
+        temp[id].total += 1;
+      });
+    }
+    return {
+      data: Object.values(temp),
+    };
   }
 
   /*
