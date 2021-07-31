@@ -21,5 +21,6 @@ import TicketGroupFund from '../../typeorm/entity/ticketGroupFund.entity';
   ],
   controllers: [FundController],
   providers: [FundService],
+  exports: [FundService],
 })
 export default class TicketModule {}
