@@ -63,10 +63,8 @@ export default class FundService {
   /*
    * 获取列表
    * */
-  async list(
-    pagination: IPaginationDto,
-    date = dateFormat(new Date(), 'yyyy-MM-dd'),
-  ) {
+  async list(pagination: IPaginationDto, date) {
+    if (!date) date = await this.getLastDay();
     const [fundList, total] = await this.queryTicketFund(date, pagination);
     const list = await this.ticket.findByIds(
       fundList.map((item) => item.ticket),
@@ -101,48 +99,8 @@ export default class FundService {
   }
 
   async sql(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
-    // const result = await this.ticketFund
-    //   .createQueryBuilder()
-    //   .delete()
-    //   .where({
-    //     date: '2021-07-29',
-    //   })
-    //   .execute();
-    //   .remove({
-    //
-    // })
-    const list = await this.ticketFund.find({
-      where: { date },
-      take: 200,
-      relations: ['ticket'],
-    });
-
-    const temp = {};
-    let total = 0;
-    for (const item of list) {
-      const tickets = await this.ticket.findOne(item.ticket.id, {
-        relations: ['ticketGroups'],
-      });
-      total += item.fund;
-      tickets.ticketGroups.forEach((ticketGroup: TicketGroup) => {
-        const { id } = ticketGroup;
-        if (!temp[id])
-          temp[id] = {
-            fund: 0,
-            total: 0,
-            type: ticketGroup.name,
-            name: tickets.name,
-          };
-        temp[id].fund += item.fund;
-        temp[id].total += 1;
-      });
-    }
-    return {
-      data: {
-        temp,
-        total,
-      },
-    };
+    const list = await this.ticketFundTotal.find();
+    return list[list.length - 1].date;
   }
 
   /*
@@ -166,7 +124,8 @@ export default class FundService {
     };
   }
 
-  async getTodayGroupPercent(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+  async getTodayGroupPercent() {
+    const date = await this.getLastDay();
     const list = await this.ticketFund.find({
       where: { date },
       take: 200,
@@ -233,7 +192,8 @@ export default class FundService {
   /*
    * 获取板块前10的资金
    * */
-  async saveGroupTotal(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+  async saveGroupTotal(date) {
+    if (!date) date = await this.getLastDay();
     const groups = await this.ticketGroup.find({
       relations: ['tickets'],
     });
@@ -282,7 +242,8 @@ export default class FundService {
     return list;
   }
 
-  async getGroupTotal(date = dateFormat(new Date(), 'yyyy-MM-dd')) {
+  async getGroupTotal(date) {
+    if (!date) date = await this.getLastDay();
     const ticketGroupFunds = await this.ticketGroupFund
       .createQueryBuilder()
       .loadAllRelationIds()
@@ -376,6 +337,14 @@ export default class FundService {
 
   async checkHasTicket(ticket: Partial<Ticket>): Promise<Ticket | undefined> {
     return this.ticket.findOne({ name: ticket.name });
+  }
+
+  /*
+   * 获取最后一天
+   * */
+  async getLastDay() {
+    const list = await this.ticketFundTotal.find();
+    return list[list.length - 1].date;
   }
 
   async storeMap(data) {
