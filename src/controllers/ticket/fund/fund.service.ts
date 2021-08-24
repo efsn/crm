@@ -14,6 +14,7 @@ import TicketGroupFund from '../../../typeorm/entity/ticketGroupFund.entity';
 
 @Injectable()
 export default class FundService {
+  static REFRESHING = false;
   private LENGTH = 200;
   private REFRESHING = false;
   @InjectRepository(Ticket)
@@ -32,12 +33,12 @@ export default class FundService {
    * 拉取当日的数据
    * */
   async refresh(): Promise<Partial<IResponseResult>> {
-    if (this.REFRESHING)
+    if (FundService.REFRESHING)
       return {
         data: {},
         message: `refreshing`,
       };
-    this.REFRESHING = true;
+    FundService.REFRESHING = true;
     const todayTime = dateFormat(new Date(), 'yyyy-MM-dd');
     const [, total] = await this.queryTicketFund(todayTime);
     if (total > 0)
@@ -54,7 +55,7 @@ export default class FundService {
       data = await this.storeMap(result);
       await this.saveToStore(data.totalList, todayTime);
     }
-    this.REFRESHING = false;
+    FundService.REFRESHING = false;
     return {
       data,
     };

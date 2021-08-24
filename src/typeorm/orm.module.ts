@@ -8,20 +8,20 @@ import { EConfigEnv } from '../types/config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigService],
       useFactory: (config: ConfigService) => {
-        console.log({
-          type: 'mysql',
-          charset: 'utf8_general_ci',
-          host: config.get<string>(ConfigService.DATABASE_HOST),
-          port: Number(config.get<number>(ConfigService.DATABASE_PORT)),
-          username: config.get<string>(ConfigService.DATABASE_USERNAME),
-          password: config.get<string>(ConfigService.DATABASE_PWD),
-          database: config.get<string>(ConfigService.DATABASE_NAME),
-          synchronize: config.get(ConfigService.ENV_NAME) === EConfigEnv.DEV, // 每次运行应用的时候实体都将与数据库同步
-          entities: ['dist/typeorm/entity/**/*.js'],
-          migrations: ['dist/typeorm/migration/**/*.js'],
-          subscribers: ['dist/typeorm/subscriber/**/*.js'],
-          insecureAuth: true,
-        });
+        // console.log({
+        //   type: 'mysql',
+        //   charset: 'utf8_general_ci',
+        //   host: config.get<string>(ConfigService.DATABASE_HOST),
+        //   port: Number(config.get<number>(ConfigService.DATABASE_PORT)),
+        //   username: config.get<string>(ConfigService.DATABASE_USERNAME),
+        //   password: config.get<string>(ConfigService.DATABASE_PWD),
+        //   database: config.get<string>(ConfigService.DATABASE_NAME),
+        //   synchronize: config.get(ConfigService.ENV_NAME) === EConfigEnv.DEV, // 每次运行应用的时候实体都将与数据库同步
+        //   entities: ['dist/typeorm/entity/**/*.js'],
+        //   migrations: ['dist/typeorm/migration/**/*.js'],
+        //   subscribers: ['dist/typeorm/subscriber/**/*.js'],
+        //   insecureAuth: true,
+        // });
 
         return {
           type: 'mysql',

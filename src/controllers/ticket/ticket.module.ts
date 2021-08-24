@@ -8,6 +8,10 @@ import Ticket from '../../typeorm/entity/ticket.entity';
 import TicketFund from '../../typeorm/entity/ticketFund.entity';
 import TicketFundTotal from '../../typeorm/entity/ticketFundTotal.entity';
 import TicketGroupFund from '../../typeorm/entity/ticketGroupFund.entity';
+import AnalysisController from './analysis/analysis.controller';
+import AnalysisService from './analysis/analysis.service';
+import TicketDayVolumeEntity from '../../typeorm/entity/ticketDayVolume.entity';
+import TicketDayMlf from '../../typeorm/entity/ticketDayMlf.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -17,10 +21,12 @@ import TicketGroupFund from '../../typeorm/entity/ticketGroupFund.entity';
       TicketFund,
       TicketFundTotal,
       TicketGroupFund,
+      TicketDayVolumeEntity,
+      TicketDayMlf,
     ]),
   ],
-  controllers: [FundController],
-  providers: [FundService],
-  exports: [FundService],
+  controllers: [FundController, AnalysisController],
+  providers: [FundService, AnalysisService],
+  exports: [FundService, AnalysisService],
 })
 export default class TicketModule {}

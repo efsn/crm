@@ -3,6 +3,7 @@ import { Logger, Injectable } from '@nestjs/common';
 @Injectable()
 export class GlobalLogger extends Logger {
   log(message: string, context?: any) {
+    return;
     if (typeof context === 'object') context = JSON.stringify(context);
     super.log(context, message);
   }
