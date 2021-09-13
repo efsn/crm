@@ -1,4 +1,4 @@
 interface IPaginationDto {
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
 }

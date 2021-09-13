@@ -34,20 +34,22 @@ export default class GlobalInterceptor implements NestInterceptor {
       },
     );
     return next.handle().pipe(
-      map<Partial<IResponseResult>, IResponseResult>(
-        ({ data, statusCode, message }) => {
-          console.log(data)
-          if (statusCode) {
-            response.status(statusCode);
-          }
-          const body = { data, statusCode: statusCode || 0, message };
-          this.logger.log(`${Loggers.END}:${trackUUid}:${method}_${url}`, {
-            ...body,
-            path: url,
-          });
-          return body;
-        },
-      ),
+      map<Partial<IResponseResult>, IResponseResult>((result) => {
+        const { data, statusCode, message } = result;
+        if (statusCode) {
+          response.status(statusCode);
+        }
+        const body = {
+          data: data ? data : result,
+          statusCode: statusCode || 0,
+          message,
+        };
+        this.logger.log(`${Loggers.END}:${trackUUid}:${method}_${url}`, {
+          ...body,
+          path: url,
+        });
+        return body;
+      }),
     );
   }
 }
